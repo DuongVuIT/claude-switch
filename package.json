@@ -1,0 +1,24 @@
+{
+  "name": "claude-switch",
+  "version": "1.2.0",
+  "description": "A local macOS workspace for Claude Code accounts and conversations",
+  "private": true,
+  "type": "module",
+  "main": "electron/main.cjs",
+  "scripts": {
+    "start": "electron .",
+    "test": "node --test tests/*.test.mjs",
+    "test:ui": "node tests/ui-smoke.mjs",
+    "package": "electron-packager . 'Claude Switch' --platform=darwin --arch=arm64 --icon=assets/icon.icns --app-bundle-id=local.claude-switch.app --extra-resource=native/desktop-bridge --out=release --overwrite --ignore='^/(release|tests|scripts|native|.local|.git|node_modules/.cache|assets/ClaudeSwitch.iconset)($|/)'",
+    "build:native": "swiftc native/desktop-bridge.swift -o native/desktop-bridge -module-cache-path /private/tmp/claude-switch-swift-cache -O"
+  },
+  "devDependencies": {
+    "@electron/packager": "^20.3.0",
+    "electron": "^42.4.0",
+    "playwright": "^1.58.2"
+  },
+  "overrides": {
+    "glob": "^14.0.4",
+    "minimatch": "^11.0.8"
+  }
+}

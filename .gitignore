@@ -1,0 +1,10 @@
+node_modules/
+release/
+.local/
+*.log
+.DS_Store
+
+.env
+.env.*
+!.env.example
+native/desktop-bridge
