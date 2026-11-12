@@ -85,8 +85,8 @@ export class DesktopProfiles {
     if (current.warnings.length || target.warnings.length) return 'Chưa đọc đủ metadata session. Không chuyển hồ sơ để tránh làm lịch sử hiện tại biến mất khỏi giao diện.';
     const targetIds = new Set(target.sessions.map(s => s.id).filter(Boolean));
     const missing = current.sessions.filter(s => !s.id || !targetIds.has(s.id)).length;
-    if (missing) return `Hồ sơ đích thiếu ${missing} session đang có. Chưa chuyển: bản này chưa hỗ trợ mang lịch sử sang tài khoản khác.`;
-    if (current.sessions.length && (!current.accountId || !target.accountId || current.accountId !== target.accountId)) return 'Chưa xác minh quyền tiếp tục các session bằng tài khoản đích. Giữ nguyên hồ sơ hiện tại; bản này chưa hỗ trợ chuyển lịch sử giữa tài khoản desktop.';
+    if (missing) return `Hồ sơ đích thiếu ${missing} session đang có. Cần hồ sơ đích đã đăng nhập và có organization để dùng Chuyển & giữ session.`;
+    if (current.sessions.length && (!current.accountId || !target.accountId || current.accountId !== target.accountId)) return 'Chưa xác minh quyền tiếp tục các session bằng tài khoản đích. Chọn Chuyển & giữ session với organization hợp lệ để kiểm tra transcript trước khi chuyển.';
     return null;
   }
   async requireContinuity(id) {

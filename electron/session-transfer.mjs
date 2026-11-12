@@ -19,6 +19,10 @@ export async function transferPlan({ source, target, orgId, transcriptRoot = pat
   if (!orgId && orgs.length === 1) orgId = orgs[0];
   if (!UUID.test(accountId || '') || !orgs.includes(orgId)) throw new Error('Đăng nhập hồ sơ đích và chọn đúng organization trước khi mang lịch sử sang.');
   const targetDir = path.join(target, 'claude-code-sessions', accountId, orgId);
+  for (const directory of [path.join(source, 'claude-code-sessions'), path.join(target, 'claude-code-sessions'), path.join(target, 'claude-code-sessions', accountId), targetDir]) {
+    const entry = await fs.lstat(directory).catch(e => { if (e.code === 'ENOENT') return null; throw e; });
+    if (entry?.isSymbolicLink()) throw new Error('Thư mục metadata session là symlink. Không chuyển dữ liệu ra ngoài hồ sơ.');
+  }
   const transcripts = new Map();
   for (const folder of await entries(transcriptRoot)) {
     if (!folder.isDirectory()) continue;
@@ -44,6 +48,7 @@ export async function transferPlan({ source, target, orgId, transcriptRoot = pat
         if (previous && previous.record.cliSessionId !== record.cliSessionId) throw new Error(`Session ID xung đột: ${record.sessionId}`);
         if (previous && String(previous.record.lastActivityAt || '') > String(record.lastActivityAt || '')) continue;
         const destination = path.join(targetDir, file.name);
+        if ((await fs.lstat(destination).catch(e => { if (e.code === 'ENOENT') return null; throw e; }))?.isSymbolicLink()) throw new Error('Metadata đích là symlink. Không theo liên kết ngoài hồ sơ.');
         const existing = await readJSON(destination);
         if (existing && existing.cliSessionId !== record.cliSessionId) throw new Error(`Session đích xung đột: ${record.sessionId}. Không ghi đè.`);
         if (!record.cwd || !path.isAbsolute(record.cwd) || !(await exists(record.cwd))) warnings.push(`${record.title || record.sessionId}: thư mục dự án không còn tại đường dẫn đã lưu.`);

@@ -1,108 +1,142 @@
-# Claude Switch
+<div align="center">
+  <img src="assets/icon.png" width="88" alt="Claude Switch icon">
+  <h1>Claude Switch</h1>
+  <p><strong>Switch accounts. Keep your flow.</strong></p>
+  <p>A local macOS companion for Claude desktop profiles and Claude Code conversations.<br>Built with Electron, Three.js, and a small native Swift bridge. Vietnamese interface.</p>
+  <p><a href="https://github.com/DuongVuIT/claude-switch/releases">Download for Apple Silicon</a> · <a href="#quick-start">Quick start</a> · <a href="#development">Build from source</a> · <a href="docs/TESTING.md">Testing</a></p>
+</div>
 
-Ứng dụng macOS quản lý hồ sơ **Claude desktop (bao gồm tab Code)** và tài khoản **Claude Code CLI**. Hai chế độ độc lập; trang mặc định là Claude desktop. Giao diện tiếng Việt; không có server trung gian hoặc telemetry của app.
+![Claude Switch desktop dashboard with Three.js artwork and sample accounts](docs/images/desktop.png)
 
-## Chuyển tài khoản trong app Claude / tab Code
+> Independent community project. Not affiliated with or endorsed by Anthropic. Desktop session transfer uses Claude's local storage format, not an official account migration API. Start with a separate backup.
 
-**Bản 1.2.0:** thêm **Chuyển & giữ session** cho hồ sơ đã đăng nhập. App sao lưu metadata rồi đưa các session Code local vào danh sách của tài khoản/organization đích, giữ nguyên ID transcript trong `~/.claude/projects`. Không ghi đè session đã có ở đích. Thiếu transcript hoặc ID xung đột sẽ chặn chuyển trước khi đóng Claude.
+## What it does
 
-1. Mở trang **Claude desktop**, chọn tài khoản đã đăng nhập và bấm **Chuyển & giữ session**.
-2. Chọn organization đích, dừng tác vụ đang chạy rồi bấm **Đóng Claude & chuyển**. App yêu cầu thoát bình thường, không force-kill.
-3. Claude mở lại bằng tài khoản đích; vào tab Code và mở session cũ. Quyền công cụ sẽ được hỏi lại. Nếu thư mục dự án cũ đã mất, cần khôi phục đúng đường dẫn.
+Claude desktop indexes local Code sessions by account and organization. Changing accounts can hide sessions from the sidebar even when their transcripts still exist on disk. Claude Switch can prepare those local session entries for another saved desktop profile while retaining the original transcript IDs.
 
-Hồ sơ mới chưa đăng nhập chưa thể nhận lịch sử. Chức năng thêm hồ sơ chỉ tạo kho trống; không tự đăng nhập hoặc lấy dữ liệu cloud.
+- **Desktop profiles:** keep each profile's user-data directory and switch through a graceful Claude restart.
+- **Local Code continuity:** validate transcripts, back up source metadata, and add missing session entries to the destination organization. Existing destination entries are not overwritten.
+- **Claude Code CLI profiles:** separate login configurations, share local history, search conversations, preview messages, and resume in Terminal or copy a command for an IDE terminal.
+- **Local backups:** create CLI snapshots with SHA-256 manifests and warnings for files that change during copying.
+- **Three.js interface:** a copper-toned 3D centerpiece, responsive layout, pause control, reduced-motion support, and a static fallback when WebGL is unavailable. Assets are bundled locally; no CDN is required.
 
-Cookie, cấu hình OAuth được mã hóa sẵn bởi Claude, IndexedDB, dữ liệu Code, Cowork, cache, workspace state và mọi mục khác trong thư mục user-data được giữ nguyên bằng phép đổi tên thư mục trên cùng filesystem. App không giải mã cookie/token, không sửa cơ sở dữ liệu Chromium, không đổi binary hoặc chữ ký của Claude. macOS Keychain giữ nguyên tại chỗ; kho hồ sơ dùng được trên máy này, không phải gói xuất credential dùng trên máy khác.
+## Scope and limits
 
-App ghi journal trước khi chuyển thư mục. Nếu gián đoạn, chức năng **Khôi phục lần chuyển** đối chiếu inode/device để nhận diện hồ sơ đã cất/đã cài; không ghi đè một thư mục không khớp. Kho hồ sơ nằm trong `~/Library/Application Support/Claude Switch/desktop-profiles`. Đây là hồ sơ đang sử dụng luân phiên, **không phải snapshot backup độc lập**; nên vẫn dùng Time Machine hoặc backup riêng.
+| Data or behavior | Support |
+| --- | --- |
+| Local Code session entries and existing JSONL transcripts | Prepared for the selected saved desktop profile; original transcript IDs retained |
+| Existing destination session entries | Kept as-is, including their titles/activity metadata |
+| Desktop login and application storage | Preserved separately by rotating whole profile directories on the same machine |
+| Project files and external attachments | Stay at their existing paths; they are not a portable project export |
+| Scratch workspaces and side-session notes | Copied into the destination without replacing existing files |
+| Chat, Cowork and cloud-only history | **Not migrated between accounts** |
+| Subscription, usage limits, organization access and SSO | **Not transferred or bypassed** |
+| Source desktop connector settings, tool grants and schedules | **Not copied into transferred session metadata**; destination settings and project configuration still apply |
+| Switching a running task without interruption | **Not supported**; stop tasks before switching |
+| Brand-new desktop profile while current profile has history | **Setup limitation:** switching is blocked until the destination has a saved login and organization; there is no guided onboarding/import flow yet |
+| Automatic full restore from backup / cross-machine account migration | **Not supported** |
 
-**Giới hạn:** chuyển đăng nhập áp dụng cho toàn bộ Claude desktop. Chỉ session Code local được đưa sang danh sách tài khoản mới; Chat, Cowork, lịch sử chỉ có trên cloud, subscription, lịch chạy, connector và quyền tổ chức không được chuyển. Metadata gốc được sao lưu; quyền công cụ và connector của tài khoản nguồn không được cấp cho tài khoản đích. Đây là tích hợp qua định dạng lưu trữ local, có thể cần cập nhật khi Claude đổi định dạng. Đã kiểm tra trên Claude 5.1231.2: chuyển 38 metadata Code sang hồ sơ đích, mở hội thoại “Video dài 8 phút” và nhận phản hồi SESSION_OK trong cùng session. Có 3 đường dẫn dự án không còn tồn tại; không bảo đảm tiếp tục các session đó trước khi khôi phục thư mục.
+This is an experimental local integration. A future Claude update may change its storage format. A single successful session does not guarantee all tools, attachments, organizations or models work with another account.
 
-## Mở ứng dụng
+## Quick start
 
-Bản đóng gói cho Apple Silicon: `release/Claude Switch-darwin-arm64/Claude Switch.app`.
+### Install on macOS
 
-Mở trực tiếp hoặc kéo vào Applications. Claude Code phải được cài trên máy. App tìm CLI ở `~/.local/bin/claude`, `/opt/homebrew/bin/claude`, `/usr/local/bin/claude` và PATH.
+1. Install the official Claude desktop app. For CLI features, install Claude Code separately.
+2. Download `Claude-Switch-1.3.0-mac-arm64.zip` from [Releases](https://github.com/DuongVuIT/claude-switch/releases).
+3. Extract it and drag **Claude Switch.app** to **Applications**.
+4. Open the app. The release is not signed with Apple Developer ID or notarized; macOS may require approval in **System Settings → Privacy & Security**. Do not disable Gatekeeper globally.
 
-Chạy mã nguồn:
+Prebuilt releases target **Apple Silicon**. Intel macOS, Windows and Linux are not validated. Downloading the application on another machine does not restore your accounts or conversations.
+
+### Switch an existing desktop profile
+
+1. Stop active Code/Cowork tasks and make a separate backup of important work.
+2. On **Claude desktop**, select a saved, logged-in profile and click **Chuyển & giữ session**.
+3. Choose the destination organization. IDs are displayed because organization names are not resolved through a private API.
+4. Click **Đóng Claude & chuyển**. The app validates the local transcripts, requests a normal quit, waits for workers, backs up metadata and prepares missing entries before rotating profiles.
+5. In the reopened Claude app, open the **Code** tab and select your old session. Check the active account and permissions before continuing.
+
+**First-time setup:** the current desktop installation is registered as **Claude hiện tại**. **Thêm tài khoản desktop** creates an empty profile, not an authenticated account. If the current profile has no local Code sessions, you can open that empty profile and log in through Claude, then open Code and refresh Claude Switch. If history already exists, the continuity guard blocks switching to an uninitialized profile. Do not remove your history to bypass this guard. This version is most useful when both profiles are already prepared.
+
+### Use CLI accounts
+
+1. Open **Tài khoản CLI**, add a named profile, then click **Đăng nhập**. Complete Claude's official login in Terminal/browser.
+2. Refresh to verify authentication. Click **Chọn** to select the profile for subsequent launches.
+3. Open **Sessions CLI**, search and preview a conversation. Click **Tiếp tục trong Terminal**, or copy the resume command into an IDE terminal.
+4. Use **Kho dữ liệu** to create a CLI snapshot and reveal its manifest in Finder.
+
+CLI selection does not change an already-running terminal process or the account used by a graphical IDE extension. Stop an existing process before resuming the same transcript elsewhere. User-level CLI extensions/configuration may be shared, and project-level authentication is checked before a launch.
+
+## How your data is handled
+
+No application server, telemetry, third-party analytics or remotely loaded UI assets are included. The renderer has no Node.js access, a restrictive CSP and a whitelisted preload API. Claude itself still connects to Anthropic for authentication and model requests.
+
+| Location | Purpose |
+| --- | --- |
+| `~/Library/Application Support/Claude` | Active official Claude desktop user data |
+| `~/Library/Application Support/Claude Switch/desktop-profiles` | Inactive desktop profiles |
+| `~/Library/Application Support/Claude Switch/backups` | CLI snapshots and desktop transfer metadata backups |
+| `~/.claude/projects` | Shared local Code transcripts |
+| `~/.claude.json` | Global CLI configuration included in CLI snapshots |
+
+Desktop switching preserves complete profile directories, including sensitive local application storage, without decrypting cookies or reading macOS Keychain. Backend code reads configuration for known account fields; token/password fields are not sent to the renderer. Transferred desktop session metadata uses an allowlist and resets the permission mode. CLI profile setup has a different policy: it can reuse user-level MCP definitions, extensions and shared configuration, which may themselves contain secrets.
+
+Backups are **not fully encrypted**. CLI snapshots contain regular files from `~/.claude`, global configuration, and app-managed CLI profiles; symlinks are recorded rather than followed. They do **not** snapshot the entire desktop profile, macOS Keychain or external repositories. Desktop transfer backups retain source session metadata, not a complete machine backup. Rotated desktop profiles are live storage, not independent snapshots. Use Time Machine or another separate backup for complete recovery.
+
+Never upload real profile folders, snapshots, `.claude.json`, cookies, tokens or conversation JSONL files to GitHub. The repository and release ZIP contain application code/assets only. See [SECURITY.md](SECURITY.md).
+
+## Troubleshooting
+
+| Symptom | What to do |
+| --- | --- |
+| Destination switch button disabled | Prepare an authenticated destination with a known Code organization; see the first-time setup limitation above |
+| Missing transcript or conflicting session ID | Switching stops; restore the correct transcript or investigate the conflict. Existing destination entries are not replaced |
+| Session opens but the project is missing | Restore the original project path; history alone does not recreate project files |
+| Claude workers have not exited | Finish tasks, close Claude normally and retry; the app does not force-kill workers |
+| Interrupted profile rotation | Use **Khôi phục lần chuyển**. The journal checks directory identities and refuses ambiguous recovery |
+| Login expired / model unavailable | Reauthenticate in Claude or select a model supported by the destination account |
+| 3D effect is unavailable | Account controls still work with static artwork; use the pause control or macOS Reduce Motion |
+
+Do not manually merge Chromium databases or edit tokens to fix login problems.
+
+## Development
+
+Requires macOS, Node.js (tested with 24), npm and Xcode Command Line Tools for the native bridge.
 
 ```sh
+git clone https://github.com/DuongVuIT/claude-switch.git
+cd claude-switch
 npm ci
 npm run build:native
 npm start
 ```
 
-## Tải lại và đóng gói
-
-Tải bản macOS Apple Silicon tại [GitHub Releases](https://github.com/DuongVuIT/claude-switch/releases). Giải nén ZIP và kéo **Claude Switch.app** vào Applications. Bản app chưa ký Developer ID/notarize; macOS có thể yêu cầu cho phép mở trong Privacy & Security.
-
-Để tự build trên macOS, cài Node.js và Xcode Command Line Tools, chạy `npm ci`, `npm run build:native`, `npm test`, rồi `npm run package`. Kết quả nằm trong `release/Claude Switch-darwin-arm64/`.
-
-Repo và file phát hành chỉ chứa ứng dụng, không chứa hồ sơ đăng nhập, token, hội thoại hay backup cá nhân. Dữ liệu đó vẫn ở máy đang dùng; tải app trên máy khác không tự khôi phục lịch sử.
-
-## Cách dùng chế độ CLI
-
-1. Tài khoản **Tài khoản trên máy** trỏ vào cấu hình Claude hiện có. App đọc lịch sử từ `~/.claude/projects` và metadata đã lưu; kiểm tra đăng nhập riêng bằng `claude auth status`.
-2. Bấm **Thêm tài khoản**, đặt tên. Trước khi tạo profile đầu tiên, app tự sao lưu dữ liệu local nếu chưa có snapshot nào.
-3. Bấm **Đăng nhập** trên thẻ tài khoản. App mở Terminal chạy `claude auth login` với `CLAUDE_CONFIG_DIR` riêng. Hoàn tất đăng nhập chính thức trong trình duyệt, sau đó bấm **Làm mới** trong app. Chọn đúng tài khoản trong luồng đăng nhập của Claude.
-4. Bấm **Chọn** để đặt tài khoản cho các phiên mở tiếp theo.
-5. Vào **Conversations**, tìm và mở hội thoại; chọn tài khoản rồi bấm **Tiếp tục trong Terminal**. App chạy CLI trong đúng `cwd` cũ với `--resume <session-id>`.
-6. Với VS Code/Cursor, bấm **Sao chép lệnh cho terminal IDE**, dán vào terminal tích hợp của IDE. Lệnh chạy trong subshell nên không thay đổi biến môi trường của terminal cha. Đây là luồng cho terminal tích hợp; không đổi tài khoản của giao diện extension Claude đang chạy.
-7. Trong **Kho dữ liệu**, tạo snapshot bổ sung và mở thư mục bản sao trong Finder.
-
-**Dừng phiên đang chạy trước khi resume cùng một session bằng tài khoản khác.** Đổi lựa chọn trong app không thể thay tài khoản giữa chừng của một process Claude, một terminal đang chạy hoặc extension IDE. Không mở đồng thời nhiều process ghi vào cùng session.
-
-## Dữ liệu nào được giữ?
-
-| Thành phần | Cách xử lý |
-| --- | --- |
-| Sessions, transcript JSONL, subagents và auto memory trong `projects` | Profile mới liên kết tới toàn bộ thư mục gốc; không chuyển thành bản tóm tắt |
-| `file-history`, `paste-cache`, `history.jsonl` | Dùng chung nguồn gốc qua symlink |
-| `skills`, `rules`, `commands`, `agents`, `plugins`, `CLAUDE.md` | Kế thừa qua symlink khi có trên máy |
-| `settings.json` | Profile mới sao chép và loại cấu hình ép tài khoản/provider (`ANTHROPIC_*`, OAuth env, `apiKeyHelper`, `forceLogin*`) |
-| MCP cấp user | Sao chép định nghĩa `mcpServers` từ cấu hình global; secret trong định nghĩa, nếu có, chỉ ở backend/local file |
-| Project configuration, source files và đính kèm ngoài thư mục Claude | Giữ ở vị trí cũ; dùng lại qua đúng thư mục dự án; không đưa toàn bộ repository vào backup |
-| Tên, email, tổ chức, vai trò, gói, IDs và ngày tháng tài khoản có trong metadata | Hiển thị các trường nhận diện đã biết; cache được phân biệt với trạng thái đăng nhập thực |
-| Token/mật khẩu | Claude Code quản lý; app không đọc Keychain, không hiển thị hoặc chuyển token qua renderer |
-
-Không phải mọi tài khoản đều có đủ tất cả các trường metadata. Cache cũ có thể không phản ánh tài khoản đang đăng nhập. App không tự lấy usage/quota hoặc lịch sử chỉ có trên cloud qua API nội bộ không được tài liệu hóa.
-
-Phiên mở qua app dùng `cleanupPeriodDays: 36500` bằng cờ `--settings`; profile mới cũng lưu giá trị này. App không sửa `settings.json` gốc. Các phiên mở ngoài app có thể vẫn áp dụng chính sách cleanup riêng của chúng. Hãy giữ snapshot định kỳ nếu cần lưu lâu dài.
-
-## Snapshot và tính toàn vẹn
-
-Mỗi snapshot chứa:
-
-- Tất cả file thông thường và thư mục trong `~/.claude`.
-- `~/.claude.json` dưới tên `global.claude.json`.
-- Profile do app quản lý và `workspace.json`.
-- `manifest.json` với kích thước và SHA-256 từng file, các symlink và cảnh báo.
-
-Snapshot hoàn tất được đổi tên từ `.partial` sang tên chính thức. File thay đổi/biến mất trong quá trình sao lưu được báo cảnh báo; nên dừng Claude rồi sao lưu lại nếu cần một bản ổn định. Snapshot không thể bảo đảm nhất quán giao dịch khi một ứng dụng khác vẫn đang ghi dữ liệu.
-
-Symlink được ghi nhận trong manifest, không đi theo liên kết ra ngoài cây dữ liệu. Socket, Keychain và dữ liệu chỉ có trên server không nằm trong snapshot. Snapshot **không phải bản chuyển tài khoản cloud** và không chuyển subscription, hạn mức, SSO, quyền workspace hoặc tệp chỉ có trên máy khác.
-
-Dữ liệu ứng dụng mặc định ở `~/Library/Application Support/Claude Switch`. Thư mục app và backup có quyền `0700`; file do app tạo và snapshot là `0600`. **Snapshot không được mã hóa toàn bộ**, có thể chứa secret từ cấu hình gốc; không chia sẻ thư mục này công khai. App không sao chép credential từ profile gốc sang profile mới.
-
-Để phục hồi thủ công: đóng các process Claude, mở snapshot trong Finder, đối chiếu manifest và khôi phục file cần thiết từ `claude/` về `~/.claude/`. `global.claude.json` tương ứng với `~/.claude.json`. Sao lưu trạng thái hiện tại trước khi ghi đè; các liên kết được tái tạo theo manifest nếu cần. Đăng nhập lại qua Claude nếu credential không còn. App chưa có nút phục hồi tự động.
-
-## Kiểm thử và đóng gói
-
 ```sh
-npm test
-npm run test:ui
-npm run build:native
-npm run package
+npm test              # isolated core / transfer / recovery tests
+npm run test:ui       # Electron fixture UI; does not switch real Claude
+npm run package      # Apple Silicon bundle in release/
 ```
 
-Core tests kiểm tra isolation, bảo toàn session/subagent, pagination, checksum/permissions và chống shell injection. Desktop tests kiểm tra đổi nguyên hồ sơ A/B, quit bị hủy, rollback khi rename lỗi, khôi phục journal sau crash và không lộ token. UI smoke test mở Electron với fixture trong thư mục tạm và bridge giả, kiểm tra chuyển desktop hai chiều cùng các luồng CLI. Fixture không sửa account, không đóng hoặc thay đổi dữ liệu Claude thật.
+The packaged app is `release/Claude Switch-darwin-arm64/Claude Switch.app`. The launcher `Open Claude Switch.command` opens that bundle after packaging. `npm run package` requires the native bridge to have been built first.
 
-Không tự động đăng nhập hoặc gửi prompt có tính phí. Kiểm thử resume thật giữa hai tài khoản cần người dùng đăng nhập từng tài khoản. Bản `.app` cục bộ chưa được ký bằng Apple Developer ID/notarize để phân phối công khai.
+```text
+electron/   IPC, CLI profiles, backups, desktop rotation and session transfer
+native/     Swift bridge for official Claude status / graceful quit / open
+src/        Local HTML/CSS/JS interface and Three.js scene
+assets/     App icons
+tests/      Isolated tests and explicitly manual live checks
+docs/       Test scope and screenshots containing sample data only
+```
 
-Biến môi trường dùng cho development/testing: `CLAUDE_SWITCH_DATA_DIR`, `CLAUDE_SWITCH_SOURCE_DIR`, `CLAUDE_SWITCH_GLOBAL_CONFIG`, `CLAUDE_SWITCH_CLI`, `CLAUDE_SWITCH_DESKTOP_DIR`. `CLAUDE_SWITCH_TEST_DESKTOP=1` chỉ có tác dụng với bản không đóng gói để dùng bridge giả. Không đặt data dir bên trong source dir (sẽ gây backup đệ quy; app từ chối cấu hình này).
+See [testing notes](docs/TESTING.md) for verification boundaries. Live scripts are opt-in; do not run them against your main profile without reading them first.
 
-## Tài liệu nền tảng
+## Contributing
 
-- [Claude Code: nhiều tài khoản với CLAUDE_CONFIG_DIR](https://code.claude.com/docs/en/authentication#log-in-with-multiple-accounts)
-- [Claude Code CLI: auth, resume và settings](https://code.claude.com/docs/en/cli-reference)
-- [Claude Code settings](https://code.claude.com/docs/en/settings)
+Bug reports and focused PRs are welcome. Include macOS architecture, Claude desktop version, Claude Switch version, steps to reproduce and a redacted error. Use synthetic transcripts for tests. Do not attach authentication data or real conversations. See [CONTRIBUTING.md](CONTRIBUTING.md).
+
+Useful contributions: first-time desktop onboarding, compatibility across Claude versions, accessibility, translations and distribution signing. No bypasses for account permissions or service limits.
+
+## License
+
+[MIT](LICENSE) © 2026 DuongVuIT. Third-party dependencies retain their respective licenses. Claude is a product of Anthropic; this project's name does not imply affiliation.

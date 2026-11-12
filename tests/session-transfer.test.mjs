@@ -57,3 +57,33 @@ test('missing project folders are reported and preserved, existing target metada
  await prepareTransfer(plan, path.join(f.root, 'backups'));
  assert.deepEqual(JSON.parse(await fs.readFile(path.join(f.dst, `${f.record.sessionId}.json`))), target);
 });
+test('transfer rejects symlink metadata paths and leaves external files unchanged', async t => {
+ const f = await setup(t);
+ const outside = path.join(f.root, 'external.json');
+ await fs.writeFile(outside, JSON.stringify(f.record));
+ const destination = path.join(f.dst, `${f.record.sessionId}.json`);
+ await fs.symlink(outside, destination);
+ await assert.rejects(transferPlan(f), /symlink/);
+ assert.deepEqual(JSON.parse(await fs.readFile(outside)), f.record);
+ await fs.rm(destination);
+ const metadataRoot = path.join(f.target, 'claude-code-sessions');
+ await fs.rename(metadataRoot, metadataRoot + '-real');
+ await fs.symlink(metadataRoot + '-real', metadataRoot);
+ await assert.rejects(transferPlan(f), /symlink/);
+ await fs.rm(metadataRoot);
+ await fs.rename(metadataRoot + '-real', metadataRoot);
+ const accountDir = path.join(metadataRoot,b);
+ await fs.rename(accountDir,accountDir+'-real');
+ await fs.symlink(accountDir+'-real',accountDir);
+ await assert.rejects(transferPlan(f), /symlink/);
+});
+test('a failed preparation removes only newly added metadata and keeps the destination intact', async t => {
+ const f = await setup(t);
+ const plan = await transferPlan(f);
+ const broken = {...plan.sessions[0], sourceFile:path.join(f.root,'missing.json')};
+ plan.sessions.push(broken);
+ await assert.rejects(prepareTransfer(plan,path.join(f.root,'backups')), /ENOENT/);
+ await assert.rejects(fs.stat(path.join(f.dst,`${f.record.sessionId}.json`)), /ENOENT/);
+ assert.equal(JSON.parse(await fs.readFile(path.join(f.target,'config.json'))).token,'TARGET_ONLY');
+ assert.deepEqual(JSON.parse(await fs.readFile(f.srcFile)),f.record);
+});

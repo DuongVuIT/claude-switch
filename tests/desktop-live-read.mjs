@@ -15,6 +15,8 @@ const app = await electron.launch({ executablePath: path.join(bundle, 'MacOS/Cla
 try {
   const page = await app.firstWindow();
   await page.getByRole('heading', { name: 'Đổi tài khoản, mang theo session Code.' }).waitFor({ timeout: 60000 });
+  await page.locator('#continuity-scene[data-scene="ready"] canvas').waitFor();
+  assert.ok((await page.locator('.sidebar-footer').innerText()).includes('v1.3.0'));
   const snapshot = await page.evaluate(() => window.claudeSwitch.desktopLoad());
   assert.equal(snapshot.app.installed, true);
   assert.equal(snapshot.app.running, before.running);

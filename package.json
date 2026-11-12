@@ -1,6 +1,6 @@
 {
   "name": "claude-switch",
-  "version": "1.2.0",
+  "version": "1.3.0",
   "description": "A local macOS workspace for Claude Code accounts and conversations",
   "private": true,
   "type": "module",
@@ -20,5 +20,13 @@
   "overrides": {
     "glob": "^14.0.4",
     "minimatch": "^11.0.8"
+  },
+  "dependencies": {
+    "three": "^0.187.0"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/DuongVuIT/claude-switch.git"
   }
 }

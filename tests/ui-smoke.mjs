@@ -26,7 +26,7 @@ let app;
 try {
   const desktopDir = path.join(temp, 'ClaudeDesktop');
   await fs.mkdir(desktopDir);
-  await fs.writeFile(path.join(desktopDir, 'config.json'), JSON.stringify({ lastKnownAccountUuid: 'test-desktop-account', 'oauth:tokenCacheV2': 'DESKTOP_SECRET' }));
+  await fs.writeFile(path.join(desktopDir, 'config.json'), JSON.stringify({ lastKnownAccountUuid: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', 'oauth:tokenCacheV2': 'DESKTOP_SECRET' }));
   app = await electron.launch({ args: [repo, `--user-data-dir=${path.join(temp, 'electron')}`], env: { ...process.env, CLAUDE_SWITCH_DATA_DIR: path.join(temp, 'data'), CLAUDE_SWITCH_SOURCE_DIR: source, CLAUDE_SWITCH_GLOBAL_CONFIG: config, CLAUDE_SWITCH_CLI: cli, CLAUDE_SWITCH_DESKTOP_DIR: desktopDir, CLAUDE_SWITCH_TEST_DESKTOP: '1' } });
   const page = await app.firstWindow();
   const errors = [];
@@ -43,13 +43,55 @@ try {
   await page.getByRole('button', { name: 'Đóng Claude & chuyển' }).click();
   await page.locator('.account-card.selected').filter({ hasText: 'Claude hiện tại' }).waitFor();
   assert.ok((await fs.readFile(path.join(desktopDir, 'config.json'), 'utf8')).includes('DESKTOP_SECRET'));
-  const metadataDir = path.join(desktopDir, 'claude-code-sessions', 'account-a', 'org-a');
+  const metadataDir = path.join(desktopDir, 'claude-code-sessions', 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', 'cccccccc-cccc-4ccc-8ccc-cccccccccccc');
   await fs.mkdir(metadataDir, { recursive: true });
-  await fs.writeFile(path.join(metadataDir, 'local_11111111-1111-4111-8111-111111111111.json'), JSON.stringify({ sessionId: 'local_11111111-1111-4111-8111-111111111111', title: 'Existing desktop history' }));
+  await fs.writeFile(path.join(metadataDir, 'local_11111111-1111-4111-8111-111111111111.json'), JSON.stringify({ sessionId: 'local_11111111-1111-4111-8111-111111111111', title: 'Build a personal workspace', cliSessionId: '11111111-1111-4111-8111-111111111110', cwd: project }));
   await page.getByRole('button', { name: 'Làm mới dữ liệu' }).click();
   await page.locator('.profile-block-reason').filter({ hasText: 'thiếu 1 session' }).waitFor();
   assert.equal(await page.locator('.account-card').filter({ hasText: 'Desktop Work' }).getByRole('button', { name: 'Dùng tài khoản này' }).isDisabled(), true);
+  // Exercise the actual carry-history IPC with two fixture accounts.
+  const stateFile = path.join(temp, 'data', 'desktop-profiles.json');
+  const state = JSON.parse(await fs.readFile(stateFile));
+  const targetId = state.profiles.find(p => p.name === 'Desktop Work').id;
+  const targetRoot = path.join(temp, 'data', 'desktop-profiles', targetId, 'user-data');
+  const org = 'cccccccc-cccc-4ccc-8ccc-cccccccccccc';
+  const account = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
+  await fs.writeFile(path.join(targetRoot, 'config.json'), JSON.stringify({lastKnownAccountUuid:account}));
+  await fs.mkdir(path.join(targetRoot, 'claude-code-sessions', account, org), {recursive:true});
+  await page.getByRole('button', { name: 'Làm mới dữ liệu' }).click();
+  await page.locator('.account-card').filter({hasText:'Desktop Work'}).getByRole('button', {name:'Chuyển & giữ session'}).click();
+  await page.getByLabel('Organization đích').selectOption(org);
+  await page.getByRole('button', {name:'Đóng Claude & chuyển'}).click();
+  await page.locator('.account-card.selected').filter({hasText:'Desktop Work'}).waitFor();
+  const copied = JSON.parse(await fs.readFile(path.join(desktopDir, 'claude-code-sessions', account, org, 'local_11111111-1111-4111-8111-111111111111.json')));
+  assert.equal(copied.cliSessionId, '11111111-1111-4111-8111-111111111110');
+  assert.equal(copied.permissionMode, 'default');
+  await page.locator('#continuity-scene[data-scene="ready"] canvas').waitFor();
+  await page.getByRole('button', {name:'Dừng chuyển động', exact:true}).click();
+  assert.equal(await page.getByRole('button', {name:'Bật chuyển động'}).getAttribute('aria-pressed'), 'true');
+  await page.getByRole('button', { name: 'Làm mới dữ liệu' }).click();
+  await page.getByRole('button', {name:'Bật chuyển động'}).waitFor();
+  await page.emulateMedia({reducedMotion:'reduce'});
+  await page.locator('[data-motion]').waitFor({state:'hidden'});
+  await page.emulateMedia({reducedMotion:'no-preference'});
+  await page.locator('#continuity-scene[data-scene="ready"] canvas').waitFor();
+  await page.locator('#toast').waitFor({state:'hidden'});
+  await page.locator('#content').evaluate(el => el.scrollTo({top:0,behavior:'instant'}));
   await page.screenshot({ path: path.join(output, 'desktop-fixture.png') });
+  await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].setSize(820, 720));
+  assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth),false);
+  await page.locator('#content').evaluate(el => el.scrollTo({top:0,behavior:'instant'}));
+  await page.screenshot({path:path.join(output,'desktop-compact.png')});
+  await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].setSize(1400, 920));
+  // Context loss must leave the account controls and a static fallback usable.
+  await page.locator('#continuity-scene canvas').evaluate(el => el.dispatchEvent(new Event('webglcontextlost', {cancelable:true})));
+  await page.locator('#continuity-scene[data-scene="fallback"]').waitFor();
+  await page.locator('[data-motion]').waitFor({state:'hidden'});
+
+  await page.locator('.account-card').filter({hasText:'Claude hiện tại'}).getByRole('button', {name:'Chuyển & giữ session'}).click();
+  await page.getByRole('button', {name:'Đóng Claude & chuyển'}).click();
+  await page.locator('.account-card.selected').filter({hasText:'Claude hiện tại'}).waitFor();
+  assert.ok((await fs.readFile(path.join(desktopDir,'config.json'),'utf8')).includes('DESKTOP_SECRET'));
   await page.locator('[data-view="overview"].nav-item').click();
   assert.equal(await page.locator('#nav-sessions').textContent(), '6');
   await page.screenshot({ path: path.join(output, 'overview-fixture.png') });
@@ -90,7 +132,7 @@ try {
   const isolation = await page.evaluate(() => ({ node: typeof window.require, api: typeof window.claudeSwitch }));
   assert.deepEqual(isolation, { node: 'undefined', api: 'object' });
   assert.deepEqual(errors, []);
-  console.log('PASS: navigation, real IPC, profile creation/persistence, account switching, metadata redaction, search, transcript, auth guard, backup, XSS escaping, compact layout, renderer isolation.');
+  console.log('PASS: desktop transfer both directions via IPC, transcript ID preservation, navigation, profiles, metadata redaction, search, transcript, auth guard, backup, XSS, compact layout, renderer isolation, Three.js, persistent pause, reduced motion and WebGL fallback.');
   console.log(`Screenshots: ${output}`);
 } finally {
   if (app) await app.close();

@@ -137,6 +137,7 @@ app.whenReady().then(async () => {
     adapter = { status: async () => ({ installed: true, running }), quit: async () => { running = false; }, open: async () => { running = true; } };
   }
   desktop = await new DesktopProfiles({ dataDir: workspace.dataDir, liveDir: process.env.CLAUDE_SWITCH_DESKTOP_DIR, adapter }).init();
+  if (!app.isPackaged && process.env.CLAUDE_SWITCH_TEST_DESKTOP === '1') desktop.transcriptRoot = path.join(workspace.sourceDir, 'projects');
   cli = await findCLI();
   setupIPC();
   await createWindow();
